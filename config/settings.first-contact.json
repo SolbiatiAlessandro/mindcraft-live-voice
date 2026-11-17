@@ -1,0 +1,37 @@
+{
+    "minecraft_version": "1.21.8",
+    "host": "127.0.0.1",
+    "port": 25564,
+    "auth": "offline",
+    "mindserver_port": 8791,
+    "auto_open_ui": false,
+    "base_profile": "assistant",
+    "profiles": [
+        "/Users/alessandro/.hermes/research/minecraft-mindcraft/config/badcock.json"
+    ],
+    "load_memory": false,
+    "init_message": "",
+    "only_chat_with": [
+        "a16i"
+    ],
+    "speak": false,
+    "chat_ingame": true,
+    "language": "en",
+    "render_bot_view": false,
+    "allow_insecure_coding": true,
+    "allow_vision": false,
+    "blocked_actions": [
+        "!checkBlueprint",
+        "!checkBlueprintLevel",
+        "!getBlueprint",
+        "!getBlueprintLevel"
+    ],
+    "narrate_behavior": false,
+    "num_examples": 2,
+    "log_all_prompts": false,
+    "reply_in_public": true,
+    "say_command": "/Users/alessandro/.hermes/research/minecraft-mindcraft/say-badcock.py",
+    "max_commands": 12,
+    "code_timeout_mins": 5,
+    "kb_dir": "/Users/alessandro/.hermes/research/minecraft-mindcraft/kb"
+}

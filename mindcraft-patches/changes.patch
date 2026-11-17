@@ -1,0 +1,140 @@
+diff --git a/package.json b/package.json
+index 883f589..ddab1e8 100644
+--- a/package.json
++++ b/package.json
+@@ -16,9 +16,9 @@
+         "globals": "^15.11.0",
+         "google-translate-api-x": "^10.7.1",
+         "groq-sdk": "^0.15.0",
+-        "minecraft-data": "^3.97.0",
+         "minecraft-assets": "^1.16.0",
+-        "mineflayer": "^4.33.0",
++        "minecraft-data": "^3.97.0",
++        "mineflayer": "4.33.0",
+         "mineflayer-armor-manager": "^2.0.1",
+         "mineflayer-auto-eat": "^3.3.6",
+         "mineflayer-collectblock": "^1.4.1",
+@@ -38,8 +38,8 @@
+         "yargs": "^17.7.2"
+     },
+     "overrides": {
+-      "canvas": "^3.1.0",
+-      "gl": "^8.1.6"
++        "canvas": "^3.1.0",
++        "gl": "^8.1.6"
+     },
+     "scripts": {
+         "postinstall": "patch-package",
+diff --git a/src/agent/agent.js b/src/agent/agent.js
+index 5f5bf31..f4cf713 100644
+--- a/src/agent/agent.js
++++ b/src/agent/agent.js
+@@ -16,6 +16,7 @@ import { serverProxy, sendOutputToServer } from './mindserver_proxy.js';
+ import settings from './settings.js';
+ import { Task } from './tasks/tasks.js';
+ import { speak } from './speak.js';
++import { spawn } from 'child_process';
+ import { log, validateNameFormat, handleDisconnection } from './connection_handler.js';
+ 
+ export class Agent {
+@@ -414,7 +415,8 @@ export class Agent {
+         // newlines are interpreted as separate chats, which triggers spam filters. replace them with spaces
+         message = message.replaceAll('\n', ' ');
+ 
+-        if (settings.only_chat_with.length > 0) {
++        // local change: reply_in_public keeps the only_chat_with listen filter but answers in public chat
++        if (settings.only_chat_with.length > 0 && !settings.reply_in_public) {
+             for (let username of settings.only_chat_with) {
+                 this.bot.whisper(username, message);
+             }
+@@ -423,7 +425,16 @@ export class Agent {
+             if (settings.speak) {
+                 speak(to_translate, this.prompter.profile.speak_model);
+             }
+-            if (settings.chat_ingame) {this.bot.chat(message);}
++            // local change: this server drops chat from offline bots, so speech goes through say_command when set
++            if (settings.chat_ingame) {
++                if (settings.say_command) {
++                    const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/KEY|TOKEN/.test(k)));
++                    const p = spawn(settings.say_command, [], { stdio: ['pipe', 'ignore', 'ignore'], env });
++                    p.on('error', (e) => console.error('say_command failed:', e.message));
++                    p.stdin.end(message);
++                }
++                else this.bot.chat(message);
++            }
+             sendOutputToServer(this.name, message);
+         }
+     }
+diff --git a/src/agent/coder.js b/src/agent/coder.js
+index f3ed726..d37ddb6 100644
+--- a/src/agent/coder.js
++++ b/src/agent/coder.js
+@@ -89,6 +89,7 @@ export class Coder {
+                 await executionModule.main(this.agent.bot);
+ 
+                 const code_output = this.agent.actions.getBotOutputSummary();
++                this.last_code = this._sanitizeCode(code); // local addition: kept for !saveScript
+                 const summary = "Agent wrote this code: \n```" + this._sanitizeCode(code) + "```\nCode Output:\n" + code_output;
+                 return summary;
+             } catch (e) {
+@@ -113,6 +114,15 @@ export class Coder {
+         return `Code generation failed after ${MAX_ATTEMPTS} attempts.`;
+     }
+     
++    // local addition: run a saved script in the same sandbox as generated code
++    async runSaved(code) {
++        lockdown();
++        const staged = await this._stageCode(code);
++        if (!staged) return 'Failed to stage script.';
++        await staged.func.main(this.agent.bot);
++        return 'Script finished. Output:\n' + this.agent.actions.getBotOutputSummary();
++    }
++
+     async  _lintCode(code) {
+         let result = '#### CODE ERROR INFO ###\n';
+         const codeNoComments = code.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+diff --git a/src/agent/commands/index.js b/src/agent/commands/index.js
+index 7ada040..506158b 100644
+--- a/src/agent/commands/index.js
++++ b/src/agent/commands/index.js
+@@ -1,6 +1,8 @@
+ import { getBlockId, getItemId } from "../../utils/mcdata.js";
+ import { actionsList } from './actions.js';
+ import { queryList } from './queries.js';
++import { kbQueries, kbActions } from './kb.js';
++queryList.push(...kbQueries); actionsList.push(...kbActions); // local addition: notes and saved scripts
+ 
+ let suppressNoDomainWarning = true;
+ 
+diff --git a/src/agent/speak.js b/src/agent/speak.js
+index 003655e..13d4f01 100644
+--- a/src/agent/speak.js
++++ b/src/agent/speak.js
+@@ -130,6 +130,14 @@ async function processQueue() {
+                     processQueue();
+                 });
+ 
++            } else if (isMac) {
++                // local change: play through the built-in afplay (ffplay is not installed)
++                const tmpPath = path.join(os.tmpdir(), `tts_${Date.now()}.mp3`);
++                await fs.writeFile(tmpPath, Buffer.from(audioData, 'base64'));
++                const player = spawn('afplay', [tmpPath], { stdio: 'ignore' });
++                const done = async () => { try { await fs.unlink(tmpPath); } catch {} isSpeaking = false; processQueue(); };
++                player.on('error', (err) => { console.error('[TTS] afplay error', err); done(); });
++                player.on('exit', done);
+             } else {
+                 const player = spawn('ffplay', ['-nodisp','-autoexit','pipe:0'], {
+                     stdio: ['pipe','ignore','ignore']
+diff --git a/src/utils/mcdata.js b/src/utils/mcdata.js
+index 2dd2ea5..ad41c48 100644
+--- a/src/utils/mcdata.js
++++ b/src/utils/mcdata.js
+@@ -53,6 +53,8 @@ export const WOOL_COLORS = [
+ 
+ 
+ export function initBot(username) {
++    // local fix: settings arrive after this module is imported, so re-read the pinned version here
++    mc_version = settings.minecraft_version || mc_version;
+     const options = {
+         username: username,
+         host: settings.host,

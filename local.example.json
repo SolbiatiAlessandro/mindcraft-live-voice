@@ -1,0 +1,7 @@
+{
+  "aws_profile": "your-aws-profile",
+  "aws_region": "us-east-1",
+  "instance_id": "i-xxxxxxxxxxxxxxxxx",
+  "rcon_tool": "/path/on/host/to/rcon.mjs",
+  "rcon_secret_file": "/path/on/host/to/rcon.secret"
+}

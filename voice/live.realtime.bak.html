@@ -1,0 +1,41 @@
+<!doctype html><meta charset="utf-8"><title>Talk to Badcock (live)</title>
+<style>body{font:16px system-ui;max-width:600px;margin:40px auto;padding:0 16px}button{font-size:20px;padding:12px 22px}.dim{color:#888}#log div{margin:5px 0}.tool{color:#06c}.me{font-weight:600}</style>
+<h2>Talk to Badcock</h2>
+<button id="b">Start talking</button> <span id="st" class="dim">off</span> · body: <span id="body" class="dim">?</span>
+<p class="dim">Leave this tab open and go back to Minecraft. Just talk; you can interrupt. Headphones give the best result.</p>
+<div id="log"></div><audio id="au" autoplay></audio>
+<script>
+let pc=null,dc=null,mic=null,active=false,pending=[];
+const $=id=>document.getElementById(id),st=s=>$('st').textContent=s;
+const log=(t,c)=>{const d=document.createElement('div');d.textContent=t;if(c)d.className=c;$('log').prepend(d)};
+const send=o=>{if(dc&&dc.readyState==='open')dc.send(JSON.stringify(o))};
+const respond=()=>{if(active)pending.push(1);else send({type:'response.create'})};
+const es=new EventSource('/events');
+es.addEventListener('status',e=>{$('body').textContent=JSON.parse(e.data).inGame?'in game':'offline'});
+es.addEventListener('update',e=>{const t=JSON.parse(e.data).text;log('body update: '+t,'tool');if(!dc)return;
+ send({type:'conversation.item.create',item:{type:'message',role:'user',content:[{type:'input_text',text:'Body update: '+t}]}});respond()});
+async function onEvent(ev){
+ if(ev.type==='response.created')active=true;
+ else if(ev.type==='response.done'){active=false;if(pending.length){pending=[];send({type:'response.create'})}}
+ else if(ev.type==='conversation.item.input_audio_transcription.completed')log('you: '+ev.transcript,'me');
+ else if(ev.type==='response.output_audio_transcript.done')log('Badcock: '+ev.transcript);
+ else if(ev.type==='error')log('error: '+(ev.error&&ev.error.message),'dim');
+ else if(ev.type==='response.function_call_arguments.done'){
+  let request='';try{request=JSON.parse(ev.arguments).request}catch{}
+  log('→ body: '+request,'tool');let result;
+  try{result=(await(await fetch('/tell',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({request})})).json()).result}catch(e){result='Could not reach the body: '+e.message}
+  log('← body: '+result,'tool');
+  send({type:'conversation.item.create',item:{type:'function_call_output',call_id:ev.call_id,output:result||'(no reply)'}});respond()}
+}
+async function start(){
+ st('connecting…');mic=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});
+ pc=new RTCPeerConnection();pc.ontrack=e=>{$('au').srcObject=e.streams[0]};mic.getTracks().forEach(t=>pc.addTrack(t,mic));
+ dc=pc.createDataChannel('oai-events');dc.onmessage=e=>onEvent(JSON.parse(e.data));dc.onopen=()=>st('live — just talk');
+ pc.onconnectionstatechange=()=>{if(['failed','closed','disconnected'].includes(pc.connectionState))stop('connection '+pc.connectionState)};
+ await pc.setLocalDescription(await pc.createOffer());
+ const r=await fetch('/offer',{method:'POST',headers:{'content-type':'application/sdp'},body:pc.localDescription.sdp});
+ if(!r.ok){stop('failed');log('error: '+await r.text(),'dim');return}
+ await pc.setRemoteDescription({type:'answer',sdp:await r.text()});$('b').textContent='Hang up'}
+function stop(why){if(mic)mic.getTracks().forEach(t=>t.stop());if(pc)pc.close();pc=dc=mic=null;active=false;pending=[];$('b').textContent='Start talking';st(why||'off')}
+$('b').onclick=()=>pc?stop():start().catch(e=>{stop('failed');log('error: '+e.message,'dim')});
+</script>

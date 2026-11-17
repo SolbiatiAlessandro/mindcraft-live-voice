@@ -1,0 +1,20 @@
+# local server details and run records
+local.json
+RECEIPT.md
+logs/
+*.bak-pre-*
+# what the bot writes at runtime
+kb/notes/*
+kb/scripts/*
+!kb/**/.gitkeep
+# downloaded or installed, see README
+mindcraft/
+node20/
+node-v*.tar.gz
+node.sha
+SHASUMS256.txt
+npm-cache-ws/
+npm-install*.log
+ssm-plugin/
+tmp-mf/
+adapter/cwd/
