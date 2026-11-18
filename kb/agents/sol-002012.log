@@ -1,0 +1,6 @@
+No configuration changes made: screenshot vision exists, but the current OpenAI request path is broken, so enabling it would not work.
+An offline test verified that mindcraft/src/models/gpt.js converts image content into “[object Object]” text before submission; no API requests or game actions were performed, and no secrets were exposed.
+config/settings.first-contact.json remains unchanged with allow_vision: false.
+No restart is needed now; fixing the image-request handling and then enabling vision would require a bot restart.
+
+session_id: 20261117_162018_5c6fbc

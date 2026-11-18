@@ -1,0 +1,6 @@
+Implemented automatic logging of Mindcraft-handled incoming/outgoing conversations to kb/notes/conversation-Badcock-YYYY-MM-DD.md, using the existing searchable notes API.
+Added sensitive-message/command omission, brief duplicate suppression, private file permissions, and nonfatal logging failures; browser-only voice conversations are not covered.
+All five tests, JavaScript syntax checks, and patch consistency checks passed; implementation, tests, and reproducible patch are in mindcraft-patches/conversation-log*, with documentation in README.md.
+A bot restart is required; I did not restart it or act in the game.
+
+session_id: 20261117_162151_b9098c

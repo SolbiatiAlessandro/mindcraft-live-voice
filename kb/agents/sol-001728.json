@@ -1,0 +1,9 @@
+{
+  "id": "sol-001728",
+  "model": "gpt-6.1-sol",
+  "task": "Research this Minecraft bot project to determine how the agent perceives nearby world details in real time, including blocks, entities, players, and visual surroundings. Inspect relevant source code and docs, identify limitations or bugs that could make the bot seem blind, and report practical findings with file paths. Do not modify files.",
+  "pid": 99833,
+  "started": "2026-11-18T00:17:28",
+  "status": "finished",
+  "ended": "2026-11-18T00:19:03"
+}

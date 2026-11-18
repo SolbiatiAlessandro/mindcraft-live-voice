@@ -26,8 +26,56 @@ Checkpoint of a toy project, built in one afternoon. It runs on one Mac against 
 4. Fix the absolute paths and the player name in `config/settings.first-contact.json` and `voice/live.mjs`.
 5. Run `supervise.py`, then `run-voice.sh`, and open `http://127.0.0.1:8793`.
 
+## What the bot can do beyond game commands
+
+All of this lives in `mindcraft-patches/kb.js` (copied to `mindcraft/src/agent/commands/kb.js`).
+
+- Notes: `!writeNote`, `!searchNotes`, `!listNotes` (files in `kb/notes/`).
+- Scripts: `!newAction` writes and runs one, `!saveScript`, `!runScript`, `!listScripts`, `!readScript` (files in `kb/scripts/`).
+- Full access to the machine it runs on: `!shell`, `!readFile`, `!writeFile`, `!readSkill`. API keys are left out of the shell environment, nothing else is restricted.
+- Separate agent sessions: `!startAgent(model, task)` starts a background Hermes session (`luna`, `sol` or `astra`) with its own shell, file and web tools; the bot is told when it finishes. `!listAgents`, `!checkAgent`. Task, status and report of each one are kept in `kb/agents/`. This needs the `hermes` command line and a Codex login.
+
+`kb/` in this repo is a snapshot of what the bot wrote itself on the first afternoon.
+
+## Automatic conversation archive
+
+The local `agent.js` and `conversation.js` hooks append handled player messages,
+outgoing chat attempts, and direct bot-to-bot messages to
+`kb/notes/conversation-Badcock-YYYY-MM-DD.md` (UTC). These are ordinary searchable
+notes for `!listNotes` and `!searchNotes`; no additional KB service is needed.
+The logger is `mindcraft-patches/conversation-log.mjs`. On a fresh checkout,
+apply `git -C mindcraft apply ../mindcraft-patches/conversation-logging.patch`
+after the existing setup patch, keeping this parent-directory layout.
+A running bot must restart to load these hooks; this change does not restart it.
+Set `kb_conversation_logging` to `false` in bot settings to opt out.
+
+Safety and scope:
+
+- Sensitive-looking messages and command payloads are replaced with omission
+  markers, not stored verbatim. Filtering is conservative and best-effort, not a
+  guarantee against arbitrary unlabelled secrets; do not send credentials in chat.
+- Entries are append-only, bounded to 8,000 characters, and new files have mode
+  `0600`. Runtime notes are already git-ignored. There is no automatic deletion.
+- Identical direction/speaker/recipient/content within two seconds is suppressed;
+  intentional repetitions in that window are also suppressed. Public mirrors of
+  bot-to-bot sends are not archived twice. No history backfill or replay occurs.
+- Internal system prompts, tool results and model reasoning are not archived.
+  Messages may already have been translated by Mindcraft. Output records are
+  attempts to speak/send, not confirmation that Minecraft delivered them.
+- This covers Mindcraft's handled conversations, not all server chat or live-voice
+  small talk handled entirely in the browser. No audio or browser transcripts are
+  exposed to these hooks, so a complete voice archive is not supported here.
+- Logging errors warn once per agent without exposing message/error contents or
+  interrupting play. Synchronous appends are intended for low-volume local chat.
+
+Verification: `node20/bin/node --test mindcraft-patches/conversation-log.test.mjs`.
+Tests use temporary files under `TMPDIR`, not the real knowledge base, and exercise
+redaction, duplicate suppression, opt-out, file permissions, write failures, and
+real Agent/ConversationManager method bodies with game/network dependencies stubbed.
+
 ## Warnings
 
+- The bot has an unrestricted shell and file access as your user, and can start agents that do too. Run it only where you would run a coding agent with full permissions.
 - `allow_insecure_coding` is on: the bot writes and runs JavaScript on your machine, inside Mindcraft's sandbox.
 - The live voice session is billed per minute while the page is connected.
 - `say-badcock.py` writes to the server console over RCON.

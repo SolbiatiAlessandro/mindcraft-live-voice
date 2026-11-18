@@ -1,0 +1,56 @@
+--- a/src/agent/agent.js
++++ b/src/agent/agent.js
+@@ -1,3 +1,4 @@
++import { logConversation } from '../../../mindcraft-patches/conversation-log.mjs';
+ import { History } from './history.js';
+ import { Coder } from './coder.js';
+ import { VisionInterpreter } from './vision/vision_interpreter.js';
+@@ -253,6 +254,9 @@
+     }
+ 
+     async handleMessage(source, message, max_responses=null) {
++        // Capture before command short-circuits; do not archive internal prompts.
++        if (source && source !== 'system' && source !== this.name && !convoManager.isOtherAgent(source))
++            logConversation(this, settings, 'in', source, message, this.name);
+         await this.checkTaskDone();
+         if (!source || !message) {
+             console.warn('Received empty message from', source);
+@@ -402,7 +406,8 @@
+         }
+     }
+ 
+-    async openChat(message) {
++    async openChat(message, archive=true) {
++        if (archive) logConversation(this, settings, 'out', this.name, message);
+         let to_translate = message;
+         let remaining = '';
+         let command_name = containsCommand(message);
+--- a/src/agent/conversation.js
++++ b/src/agent/conversation.js
+@@ -1,3 +1,4 @@
++import { logConversation } from '../../../mindcraft-patches/conversation-log.mjs';
+ import settings from './settings.js';
+ import { containsCommand } from './commands/index.js';
+ import { sendBotChatToServer } from './mindserver_proxy.js';
+@@ -148,7 +149,7 @@
+         const convo = this._getConvo(send_to);
+         
+         if (settings.chat_bot_messages && open_chat)
+-            agent.openChat(`(To ${send_to}) ${message}`);
++            agent.openChat(`(To ${send_to}) ${message}`, false);
+         
+         if (convo.ignore_until_start)
+             return;
+@@ -162,10 +163,12 @@
+         };
+ 
+         this.awaiting_response = true;
++        logConversation(agent, settings, 'out', agent.name, message, send_to);
+         sendBotChatToServer(send_to, json);
+     }
+ 
+     async receiveFromBot(sender, received) {
++        logConversation(agent, settings, 'in', sender, received.message, agent.name);
+         const convo = this._getConvo(sender);
+ 
+         if (convo.ignore_until_start && !received.start)

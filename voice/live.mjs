@@ -42,7 +42,15 @@ function tell(request) {
     const cmd = fastPath(request), parts = []; let quiet = null;
     const done = (fallback) => { clearTimeout(quiet); clearTimeout(hard); waiter = null; resolve(parts.join(' ') || fallback); };
     const hard = setTimeout(() => done('Body has started on it and is still working. A body update will follow.'), 25000);
-    waiter = { finish: done, add: (t) => { parts.push(t); clearTimeout(quiet); quiet = setTimeout(() => done(''), cmd ? 1500 : 3000); } };
+    waiter = { finish: done, add: (t) => {
+      // A reply that is only a command (or ends in one) is not the answer yet: the body runs it and speaks again.
+      const hasCmd = /![a-zA-Z]+/.test(t), words = t.replace(/![a-zA-Z]+(\([^)]*\))?/g, '').trim();
+      if (words) parts.push(words);
+      clearTimeout(quiet);
+      if (cmd) quiet = setTimeout(() => done(''), 1500);
+      else if (!hasCmd) quiet = setTimeout(() => done(''), 3000);
+      else if (words) quiet = setTimeout(() => done(''), 9000);
+    } };
     log('tell:', JSON.stringify(request), cmd ? '(fast ' + cmd + ')' : '');
     sock.emit('send-message', AGENT, { from: OWNER, message: cmd || request });
   });

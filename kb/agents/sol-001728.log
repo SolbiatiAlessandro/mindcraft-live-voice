@@ -1,0 +1,9 @@
+Badcock perceives structured Mineflayer world data, not continuous video: each $STATS prompt refresh includes nearby block types within 8 blocks, entity counts within 16, and player names within 64, but omits their coordinates/directions and excludes dropped items (mindcraft/src/models/prompter.js:140, mindcraft/src/agent/commands/queries.js:104–212, mindcraft/src/agent/library/world.js:118–215).
+
+The clearest “blindness” cause is explicit configuration: config/settings.first-contact.json:22 sets allow_vision=false, so !lookAtPlayer and !lookAtPosition return “Vision is disabled” without even turning; enabling render_bot_view alone only provides a human-facing viewer, not agent vision (mindcraft/src/agent/vision/vision_interpreter.js:15–52, mindcraft/src/agent/vision/browser_viewer.js:5).
+
+Additional limitations include unknown/unloaded blocks being reported as air, spatial layouts collapsing into block-name sets, and “nearby bot players” coming from the conversation registry rather than a distance check; potential vision bugs include asynchronous camera initialization without a readiness wait and !lookAtPosition aiming two blocks above the requested Y, while the default image-analysis prompt documents missing below-zero blocks and inaccurate sky/items rendering (mindcraft/src/agent/library/world.js:42–55, mindcraft/src/agent/commands/queries.js:109–127 and :153–161, mindcraft/src/agent/vision/camera.js:26–46, mindcraft/src/agent/vision/vision_interpreter.js:47, mindcraft/profiles/defaults/_default.json:12).
+
+Practical priorities are coordinate-rich bot.blockAt/bot.findBlocks/bot.entities inspection scripts for reliable spatial questions, distinguishing unknown from air, and separately enabling/testing screenshot vision with a compatible model; these are source/configuration findings, not in-game reproductions, and I modified no files.
+
+session_id: 20261117_161734_53944b

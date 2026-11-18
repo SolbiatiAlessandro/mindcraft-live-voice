@@ -3,10 +3,8 @@ local.json
 RECEIPT.md
 logs/
 *.bak-pre-*
-# what the bot writes at runtime
-kb/notes/*
-kb/scripts/*
-!kb/**/.gitkeep
+# verbatim chat transcripts stay local; the bot's notes, scripts and worker records are versioned
+kb/notes/conversation-Badcock-*
 # downloaded or installed, see README
 mindcraft/
 node20/
