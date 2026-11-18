@@ -37,6 +37,13 @@ All of this lives in `mindcraft-patches/kb.js` (copied to `mindcraft/src/agent/c
 
 `kb/` in this repo is a snapshot of what the bot wrote itself on the first afternoon.
 
+## Vision and scripted chat
+
+Apply `mindcraft-patches/vision-and-chat.patch` after the other two patches.
+
+- Vision: `allow_vision` is on. `!lookAtPlayer` and `!lookAtPosition` render a screenshot of the bot's view and send it to the chat model. The stock OpenAI image request turned the image into the text "[object Object]"; the patch sends it properly.
+- Chat from scripts: the server drops chat from offline bots, so `bot.chat()` is rerouted through `say_command`. Before this, scripts the bot wrote to "say" something ran without error and nobody saw the text.
+
 ## Automatic conversation archive
 
 The local `agent.js` and `conversation.js` hooks append handled player messages,

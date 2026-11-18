@@ -19,7 +19,7 @@
     "language": "en",
     "render_bot_view": false,
     "allow_insecure_coding": true,
-    "allow_vision": false,
+    "allow_vision": true,
     "blocked_actions": [
         "!checkBlueprint",
         "!checkBlueprintLevel",

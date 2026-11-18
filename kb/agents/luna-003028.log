@@ -1,0 +1,3 @@
+Incoming player and outgoing Badcock messages are being recorded in `kb/notes/conversation-Badcock-2026-11-18.md`: I verified 2 incoming and 10 outgoing entries, including a16i’s messages and Badcock’s replies through 00:30:30 UTC. The logger skips blank messages, suppresses duplicates within two seconds, and redacts likely sensitive text and command payloads, so the transcript isn’t always verbatim. Logging is enabled unless explicitly disabled; `config/settings.json` is absent here, so I couldn’t verify a runtime opt-out setting. No files were modified.
+
+session_id: 20261117_163034_4b2cb6

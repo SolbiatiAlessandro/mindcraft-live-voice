@@ -1,0 +1,98 @@
+diff --git a/src/agent/agent.js b/src/agent/agent.js
+index 1ed03ee..5e68d6c 100644
+--- a/src/agent/agent.js
++++ b/src/agent/agent.js
+@@ -66,6 +66,19 @@ export class Agent {
+ 
+         console.log(this.name, 'logging into minecraft...');
+         this.bot = initBot(this.name);
++        // local change: this server drops chat from offline bots, so anything that calls bot.chat()
++        // (scripts written with !newAction included) is sent through say_command; slash commands pass through.
++        if (settings.say_command) {
++            // bot.chat only exists once mineflayer has loaded its plugins, so hook it at login
++            this.bot.once('login', () => {
++                const rawChat = this.bot.chat.bind(this.bot);
++                this.bot.chat = (message) => {
++                    const text = String(message ?? '');
++                    if (text.startsWith('/')) return rawChat(text);
++                    this.sayViaCommand(text);
++                };
++            });
++        }
+         
+         // Connection Handler
+         const onDisconnect = (event, reason) => {
+@@ -406,6 +419,13 @@ export class Agent {
+         }
+     }
+ 
++    sayViaCommand(message) {
++        const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/KEY|TOKEN/.test(k)));
++        const p = spawn(settings.say_command, [], { stdio: ['pipe', 'ignore', 'ignore'], env });
++        p.on('error', (e) => console.error('say_command failed:', e.message));
++        p.stdin.end(message);
++    }
++
+     async openChat(message, archive=true) {
+         if (archive) logConversation(this, settings, 'out', this.name, message);
+         let to_translate = message;
+@@ -432,13 +452,7 @@ export class Agent {
+             }
+             // local change: this server drops chat from offline bots, so speech goes through say_command when set
+             if (settings.chat_ingame) {
+-                if (settings.say_command) {
+-                    const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/KEY|TOKEN/.test(k)));
+-                    const p = spawn(settings.say_command, [], { stdio: ['pipe', 'ignore', 'ignore'], env });
+-                    p.on('error', (e) => console.error('say_command failed:', e.message));
+-                    p.stdin.end(message);
+-                }
+-                else this.bot.chat(message);
++                this.bot.chat(message);
+             }
+             sendOutputToServer(this.name, message);
+         }
+diff --git a/src/models/gpt.js b/src/models/gpt.js
+index 364d246..76c578b 100644
+--- a/src/models/gpt.js
++++ b/src/models/gpt.js
+@@ -88,19 +88,31 @@ export class GPT {
+     }
+ 
+     async sendVisionRequest(messages, systemMessage, imageBuffer) {
+-        const imageMessages = [...messages];
+-        imageMessages.push({
++        // local change: the stock path ran the image message through the text-only formatting in
++        // sendRequest, which turned it into the string "[object Object]". Send it to the responses API as is.
++        const model = this.model_name || "gpt-5.4-mini";
++        const input = strictFormat(messages);
++        input.push({
+             role: "user",
+             content: [
+-                { type: "input_text", text: systemMessage },
+-                {
+-                    type: "input_image",
+-                    image_url: `data:image/jpeg;base64,${imageBuffer.toString('base64')}`
+-                }
++                { type: "input_text", text: "This is the screenshot of your current view." },
++                { type: "input_image", image_url: `data:image/jpeg;base64,${imageBuffer.toString('base64')}` }
+             ]
+         });
+-        
+-        return this.sendRequest(imageMessages, systemMessage);
++        try {
++            console.log('Awaiting openai vision response from model', model);
++            const response = await this.openai.responses.create({
++                model: model,
++                instructions: systemMessage,
++                input: input,
++                ...(this.params || {})
++            });
++            console.log('Received.');
++            return response.output_text;
++        } catch (err) {
++            console.log(err);
++            return 'Vision request failed: ' + String(err?.message || err).slice(0, 200);
++        }
+     }
+ 
+     async embed(text) {

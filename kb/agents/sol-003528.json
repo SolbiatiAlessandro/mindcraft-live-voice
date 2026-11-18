@@ -1,0 +1,8 @@
+{
+  "id": "sol-003528",
+  "model": "gpt-6.1-sol",
+  "task": "Research Minecraft house designs online and create a practical build plan for Badcock and a16i. Recommend one achievable house design, give exact dimensions and a block-by-block material list, and explain the build sequence. Favor materials readily gathered in a forest biome and a design suitable for survival mode. Report the sources or URLs you used and keep the plan concise.",
+  "pid": 6819,
+  "started": "2026-11-18T00:35:28",
+  "status": "running"
+}
